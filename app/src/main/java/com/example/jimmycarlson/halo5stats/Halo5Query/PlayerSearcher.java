@@ -5,12 +5,15 @@ import android.graphics.Bitmap;
 import android.media.Image;
 import android.net.Uri;
 import android.util.Log;
+import android.util.LruCache;
 import android.widget.ImageView;
 
 import com.android.volley.AuthFailureError;
+import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
+import com.android.volley.toolbox.ImageLoader;
 import com.android.volley.toolbox.ImageRequest;
 import com.android.volley.toolbox.Volley;
 
@@ -18,19 +21,69 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
 
+import javax.xml.transform.Templates;
+
 /**
  * Created by jimmycarlson on 9/9/16.
+ *
+ * This is a singleton class for the volley searches
+ *
  */
 public class PlayerSearcher {
+    private static PlayerSearcher mInstance;
+    private ImageLoader mImageLoader;
+    private RequestQueue mReqeustQueue;
+    private static Context mContext;
 
-    private final String oAuthKey = "927352f116114ea19470118dc791f91a";
-    private RequestQueue queue;
-    private Bitmap bitmapResponse;  // used to return values from inner classes
 
     public PlayerSearcher(Context context) {
-        RequestQueue queue = Volley.newRequestQueue(context);
+        mContext = context;
+        mReqeustQueue = getRequestQueue();
+
+        mImageLoader = new ImageLoader(mReqeustQueue,
+                new ImageLoader.ImageCache() {
+                    private final LruCache<String, Bitmap>
+                            cache = new LruCache<String, Bitmap>(20);
+
+                    @Override
+                    public Bitmap getBitmap(String url) {
+                        return cache.get(url);
+                    }
+
+                    @Override
+                    public void putBitmap(String url, Bitmap bitmap) {
+                        cache.put(url, bitmap);
+                    }
+                });
     }
 
+    public static synchronized PlayerSearcher getInstance(Context context) {
+        if (mInstance == null) {
+            mInstance = new PlayerSearcher(context);
+        }
+        return mInstance;
+    }
+
+    public RequestQueue getRequestQueue() {
+        if (mReqeustQueue == null) {
+            // getApplicationContext() is key, it keeps you from leaking the
+            // Activity or BroadcastReceiver if someone passes one in.
+            mReqeustQueue = Volley.newRequestQueue(mContext.getApplicationContext());
+        }
+        return mReqeustQueue;
+    }
+
+    public <T> void addToRequestQueue(Request<T> req) {
+        getRequestQueue().add(req);
+    }
+
+    public ImageLoader getImageLoader() {
+        return mImageLoader;
+    }
+
+}
+
+    /*
     // Gets Bitmap response of spartan emblem
     public Bitmap getSpartanEmblem(String playerGamertag) {
 
@@ -78,4 +131,5 @@ public class PlayerSearcher {
 
         return bitmapResponse;
     }
-}
+
+*/
